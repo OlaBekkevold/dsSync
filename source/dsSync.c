@@ -1,9 +1,10 @@
+#include "connection.h"
+#include "saveMenu.h"
+#include "utils.h"
 #include <nds.h>
 #include <stdio.h>
 #include <dswifi9.h>
 #include <sys/socket.h>
-#include "connection.h"
-#include "saveMenu.h"
 #include <fat.h>
 #include <dirent.h>
 
@@ -18,9 +19,6 @@ typedef struct
 void appendToBuffer(const char *data, int len, void *userData);
 int getSaves();
 int getLocalSaves();
-int appendDynArray(char ***arr, int *capacity, int *size, const char *str);
-
-
 
 
 int main(void)
@@ -69,35 +67,11 @@ int main(void)
     return 0;
 }
 
-int appendDynArray(char ***arr, int *capacity, int *size, const char *str)
-{
-
-    if (*size >= *capacity)
-    {
-        *capacity *= 2;
-        char **tmp = realloc(*arr, *capacity * sizeof(char *));
-        if (tmp == NULL)
-        {
-            iprintf("Realloc failed\n");
-            for (int i = 0; i < *size; i++)
-            {
-                free((*arr)[i]);
-            }
-            free(*arr);
-            return -1;
-        }
-        *arr = tmp;
-    }
-    (*arr)[*size] = strdup(str);
-    (*size)++;
-    return 0;
-}
-
 
 int getLocalSaves()
 {
     struct dirent *pent;
-    DIR* pdir = opendir("/");
+    DIR* pdir = opendir("/roms/nds");
 
     if (!pdir)
     {
@@ -106,10 +80,9 @@ int getLocalSaves()
         return -1;
     }
 
-    int capacity = 5;
-    int size = 0;
-    char **arr = calloc(capacity, sizeof(char *));
-    if (arr == NULL)
+
+    DynArray arrStruct = initDynArray(5);
+    if (arrStruct.arr == NULL)
     {
         iprintf("Realloc failed\n");
         return -1;
@@ -117,15 +90,11 @@ int getLocalSaves()
 
     while ((pent = readdir(pdir)) != NULL)
     {
-        appendDynArray(&arr, &capacity, &size, pent->d_name);
+        appendDynArray(&arrStruct, pent->d_name);
     }
-    populateSaves((const char * const *)arr, size);
+    populateSaves((const char * const *)arrStruct.arr, arrStruct.size);
 
-    for (int i = 0; i < size; i++)
-    {
-        free(arr[i]);
-    }
-    free(arr);
+    freeDynArray(&arrStruct);
     closedir(pdir);
     return 0;
 }
@@ -164,10 +133,8 @@ int getSaves()
     conn_recv(&info, appendToBuffer, &sink);
 
 
-    int capacity = 5;
-    int size = 0;
-    char **arr = calloc(capacity, sizeof(char *));
-    if (arr == NULL)
+    DynArray arrStruct = initDynArray(5);
+    if (arrStruct.arr == NULL)
     {
         iprintf("Realloc failed\n");
         return -1;
@@ -176,17 +143,13 @@ int getSaves()
     char *token = strtok(listBuf, "\r\n");
     while (token != NULL)
     {
-        appendDynArray(&arr, &capacity, &size, token);
+        appendDynArray(&arrStruct, token);
 
         token = strtok(nullptr, "\r\n");
     }
 
-    populateSaves((const char * const *)arr, size);
+    populateSaves((const char * const *)arrStruct.arr, arrStruct.size);
 
-    for (int i = 0; i < size; i++)
-    {
-        free(arr[i]);
-    }
-    free(arr);
+    freeDynArray(&arrStruct);
     return 0;
 }

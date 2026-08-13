@@ -18,4 +18,6 @@ add_executable(httpget ${SOURCES}
         source/connection.h
         source/connection.c
         source/saveMenu.h
-        source/saveMenu.c)
+        source/saveMenu.c
+        source/utils.h
+        source/utils.c)
